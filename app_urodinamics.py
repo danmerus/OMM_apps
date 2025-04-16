@@ -1,7 +1,7 @@
 import streamlit as st
 import math
 
-st.title("Прогнозирование риска развития тазовых и уродинамических дисфункций")
+st.title("Прогнозирование риска развития тазовых и уродинамических дисфункций женщин после родов")
 
 # 1) Radio buttons for question1
 question1 = st.radio(

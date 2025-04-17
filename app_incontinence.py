@@ -1,80 +1,91 @@
 import streamlit as st
 
-def main():
-    st.title("Анализ результатов исследований")
+# ---------- helpers ---------- #
+def get_float(label, placeholder, *, min_v, max_v):
+    """
+    Text‑based numeric input:
+    • Returns float or None
+    • Shows an error if value is not a number or out of range
+    """
+    raw = st.text_input(label, placeholder=placeholder)
+    if raw == "":
+        return None
+    try:
+        val = float(raw.replace(",", "."))   # allow comma decimals
+    except ValueError:
+        st.error("Введите число, пожалуйста.")
+        return None
+    if not (min_v <= val <= max_v):
+        st.error(f"Значение должно быть в диапазоне {min_v}…{max_v}.")
+        return None
+    return val
 
-    # Create a form so that all input is collected nicely
-    with st.form(key="my_form"):
+def yes_no(label):
+    """Selectbox with a placeholder so the field can start unselected."""
+    choice = st.selectbox(label, ["— выберите ответ —", "Да", "Нет"], index=0)
+    return None if choice.startswith("—") else int(choice == "Да")
+
+# ---------- main app ---------- #
+def main():
+    st.header("OMM INCONTINENCE")
+
+    with st.form("my_form"):
         st.write("Введите данные:")
 
-        dlinaUretri = st.number_input(
+        dlina_uretri = get_float(
             "Длина уретры по данным УЗИ (см)",
-            min_value=2.0,
-            max_value=4.2,
-            step=0.01,
-            format="%.2f",
+            "2.0 … 4.2",
+            min_v=2.0, max_v=4.2
         )
 
-        diffShiriniUretri = st.number_input(
+        diff_shirini = get_float(
             "Разность ширины уретры в покое и при натуживании (см)",
-            min_value=-0.39,
-            max_value=0.50,
-            step=0.01,
-            format="%.2f",
+            "-0.39 … 0.50",
+            min_v=-0.39, max_v=0.50
         )
 
-        maxSpeedMochi = st.number_input(
+        max_speed = get_float(
             "Максимальная скорость потока мочи (мл/сек)",
-            min_value=16.0,
-            max_value=41.0,
-            step=0.01,
-            format="%.2f",
+            "16.0 … 41.0",
+            min_v=16.0, max_v=41.0
         )
 
-        avgSpeedMochi = st.number_input(
+        avg_speed = get_float(
             "Средняя скорость потока мочи (мл/сек)",
-            min_value=8.0,
-            max_value=21.0,
-            step=0.01,
-            format="%.2f",
+            "8.0 … 21.0",
+            min_v=8.0, max_v=21.0
         )
 
-        ggCOL1A = st.checkbox(
-            "Пациент является носителем генотипа GG COL1A1:1546",
-            value=False
-        )
-        ggESR = st.checkbox(
-            "Пациент является носителем генотипа GG ESR:-351",
-            value=False
-        )
+        gg_col1a = yes_no("Пациент является носителем генотипа GG COL1A1:1546?")
+        gg_esr   = yes_no("Пациент является носителем генотипа GG ESR:-351?")
 
-        # Button to trigger the calculation
-        submit_button = st.form_submit_button(label="Анализ результатов")
+        submit = st.form_submit_button("Анализ результатов")
 
-    # If user clicked "Analyze"
-    if submit_button:
-        # Convert booleans to integer (0 or 1) the same way
-        val_ggCOL1A = 1 if ggCOL1A else 0
-        val_ggESR = 1 if ggESR else 0
+    # ----------- calculation ----------- #
+    if submit:
+        if None in (
+            dlina_uretri, diff_shirini, max_speed,
+            avg_speed, gg_col1a, gg_esr
+        ):
+            st.warning("Пожалуйста, заполните все поля корретно.")
+            return
 
-        # Calculations based on your JavaScript
-        resultSetka = (
-            -7.9285 * diffShiriniUretri
-            + 0.2587 * avgSpeedMochi
-            + 0.4650 * val_ggESR
+        result_setka = (
+            -7.9285 * diff_shirini
+            + 0.2587 * avg_speed
+            + 0.4650 * gg_esr
             - 3.8844
         )
-        resultGel = (
-            1.390 * dlinaUretri
-            - 0.3216 * maxSpeedMochi
-            - 0.7385 * val_ggCOL1A
+        result_gel = (
+            1.390  * dlina_uretri
+            - 0.3216 * max_speed
+            - 0.7385 * gg_col1a
             + 6.184
         )
 
-        # Present the results
         st.write("## Результаты")
-        # For Setka
-        if resultSetka > 0:
+        # Setka recommendation
+        if result_setka > 0:
             st.markdown(
                 "**Уретропексия свободной синтетической петлёй + передняя кольпоррафия:** "
                 ":red[НЕ рекомендовано]"
@@ -85,8 +96,8 @@ def main():
                 ":green[РЕКОМЕНДОВАНО]"
             )
 
-        # For Gel
-        if resultGel > 0:
+        # Gel recommendation
+        if result_gel > 0:
             st.markdown(
                 "**Парауретральное введение объёмообразующего геля + передняя кольпоррафия:** "
                 ":red[НЕ рекомендовано]"
@@ -96,10 +107,6 @@ def main():
                 "**Парауретральное введение объёмообразующего геля + передняя кольпоррафия:** "
                 ":green[РЕКОМЕНДОВАНО]"
             )
-
-        # Debug info (remove if not needed)
-        # st.write(f"resultSetka = {resultSetka:.4f}")
-        # st.write(f"resultGel   = {resultGel:.4f}")
 
 if __name__ == "__main__":
     main()

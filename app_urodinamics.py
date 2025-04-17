@@ -18,7 +18,7 @@ ar_2 = st.number_input(
     min_value=-1.0,
     max_value=1.0,
     step=0.1,
-    value=0.0,
+    # value=0.0,
     format="%.1f"
 )
 
@@ -28,7 +28,7 @@ ar_3 = st.number_input(
     min_value=55.0,
     max_value=100.0,
     step=1.0,
-    value=70.0,
+    # value=70.0,
     format="%.1f"
 )
 
@@ -46,7 +46,7 @@ ar_5 = st.number_input(
     min_value=2.0,
     max_value=12.0,
     step=0.1,
-    value=6.0,
+    # value=6.0,
     format="%.1f"
 )
 
@@ -56,7 +56,7 @@ ar_6 = st.number_input(
     min_value=3.0,
     max_value=14.0,
     step=0.1,
-    value=8.0,
+    # value=8.0,
     format="%.1f"
 )
 

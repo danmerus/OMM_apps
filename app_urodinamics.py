@@ -1,84 +1,88 @@
 import streamlit as st
 import math
 
-st.header('OMM POSTPARTUM PELVIC DYSFUNCTIION')
-st.title("Прогнозирование риска развития тазовых и уродинамических дисфункций женщин после родов")
+def get_float(label, placeholder, *, min_v, max_v):
+    """Return a float or None, after basic validation."""
+    txt = st.text_input(label, placeholder=placeholder)
+    if txt == "":
+        return None                # nothing entered
+    try:
+        val = float(txt.replace(",", "."))  # allow comma‑decimal
+    except ValueError:
+        st.error("Введите число, пожалуйста.")
+        return None
+    if not (min_v <= val <= max_v):
+        st.error(f"Значение должно быть в диапазоне {min_v} … {max_v}.")
+        return None
+    return val
 
-# 1) Radio buttons for question1
-question1 = st.radio(
+st.subheader("OMM POSTPARTUM PELVIC DYSFUNCTION")
+st.header("Прогнозирование риска развития тазовых и уродинамических дисфункций женщин после родов")
+
+# ───────────── Базовые поля ─────────────
+question1 = st.selectbox(
     "У пациентки были первые роды?",
-    options=["Да", "Нет"],
+    options=["— выберите ответ —", "Да", "Нет"],
     index=0
 )
-ar_1 = 1 if question1 == "Да" else 0
+ar_1 = None if question1.startswith("—") else int(question1 == "Да")
 
-# 2) Number input for question2
-ar_2 = st.number_input(
-    "Разность ширины уретры в покое и при натуживании (мм) (от -1 до 1)",
-    min_value=-1.0,
-    max_value=1.0,
-    step=0.1,
-    # value=0.0,
-    format="%.1f"
+ar_2 = get_float(
+    "Разность ширины уретры в покое и при натуживании (мм)",
+    "от -1 до 1",
+    min_v=-1.0, max_v=1.0
 )
 
-# 3) Number input for question3
-ar_3 = st.number_input(
-    "Величина давления, оказываемого на влагалищный датчик при сокращении мышц (мм.рт.ст.) (от 55 до 100)",
-    min_value=55.0,
-    max_value=100.0,
-    step=1.0,
-    # value=70.0,
-    format="%.1f"
+ar_3 = get_float(
+    "Давление на влагалищный датчик при сокращении мышц (мм рт. ст.)",
+    "55 … 100",
+    min_v=55.0, max_v=100.0
 )
 
-# 4) Radio buttons for question4
-question4 = st.radio(
-    "Пациентка является носителем генотипа GG гена ESR1:A-351G?",
-    options=["Да", "Нет"],
-    index=1
+question4 = st.selectbox(
+    "Пациентка — носитель генотипа GG гена ESR1:A‑351G?",
+    options=["— выберите ответ —", "Да", "Нет"],
+    index=0
 )
-ar_4 = 1 if question4 == "Да" else 0
+ar_4 = None if question4.startswith("—") else int(question4 == "Да")
 
-# 5) Number input for question5
-ar_5 = st.number_input(
-    "Величина сухожильного центра промежности (мм) (от 2.0 до 12.0)",
-    min_value=2.0,
-    max_value=12.0,
-    step=0.1,
-    # value=6.0,
-    format="%.1f"
+ar_5 = get_float(
+    "Размер сухожильного центра промежности (мм)",
+    "2.0 … 12.0",
+    min_v=2.0, max_v=12.0
 )
 
-# 6) Number input for question6
-ar_6 = st.number_input(
-    "Величина m. bulbospongiosus (мм) (от 3.0 до 14.0)",
-    min_value=3.0,
-    max_value=14.0,
-    step=0.1,
-    # value=8.0,
-    format="%.1f"
+ar_6 = get_float(
+    "Размер m. bulbospongiosus (мм)",
+    "3.0 … 14.0",
+    min_v=3.0, max_v=14.0
 )
 
-# Button to trigger computation
+# ───────────── Кнопка расчёта ─────────────
 if st.button("Рассчитать риск"):
-    # Replicate the logistic formula from the PHP
-    numerator = math.exp(
-        13.189
-        - 1.314  * ar_1
-        - 5.4581 * ar_2
-        - 0.12576 * ar_3
-        + 2.9661 * ar_4
-        - 0.27877 * ar_5
-        - 0.16889 * ar_6
-    )
-    denominator = 1 + numerator
-    W = numerator / denominator
-
-    # Decide risk level
-    if W >= 0.5:
-        st.markdown("<h3 style='text-align: center; color: red;'>ВЫСОКИЙ РИСК</h3>", unsafe_allow_html=True)
-        st.markdown("<h5 style='text-align: center;'>развития дисфункции тазового дна через 6 месяцев после родов</h5>", unsafe_allow_html=True)
+    # убеждаемся, что все поля заполнены
+    if None in (ar_1, ar_2, ar_3, ar_4, ar_5, ar_6):
+        st.warning("Пожалуйста, заполните все поля.")
     else:
-        st.markdown("<h3 style='text-align: center; color: green;'>НИЗКИЙ РИСК</h3>", unsafe_allow_html=True)
-        st.markdown("<h5 style='text-align: center;'>развития дисфункции тазового дна через 6 месяцев после родов</h5>", unsafe_allow_html=True)
+        num = math.exp(
+            13.189
+            - 1.314  * ar_1
+            - 5.4581 * ar_2
+            - 0.12576 * ar_3
+            + 2.9661 * ar_4
+            - 0.27877 * ar_5
+            - 0.16889 * ar_6
+        )
+        W = num / (1 + num)
+        if W >= 0.5:
+            st.markdown(
+                "<h3 style='text-align:center;color:red;'>ВЫСОКИЙ РИСК</h3>"
+                "<h5 style='text-align:center;'>дисфункции тазового дна через 6 месяцев после родов</h5>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<h3 style='text-align:center;color:green;'>НИЗКИЙ РИСК</h3>"
+                "<h5 style='text-align:center;'>дисфункции тазового дна через 6 месяцев после родов</h5>",
+                unsafe_allow_html=True,
+            )

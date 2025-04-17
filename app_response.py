@@ -3,7 +3,7 @@ import streamlit as st
 # ── helpers ──────────────────────────────────────────────────────────────
 def get_float(label, placeholder, *, min_v: float, max_v: float):
     """
-    Numeric text box that can start empty.
+    Numeric text box that starts empty.
     Returns float or None after validating range and format.
     """
     raw = st.text_input(label, placeholder)
@@ -18,6 +18,15 @@ def get_float(label, placeholder, *, min_v: float, max_v: float):
         st.error(f"Значение должно быть в диапазоне {min_v} – {max_v}")
         return None
     return value
+
+
+def yes_no(label: str) -> int | None:
+    """
+    Drop‑down with a placeholder so it can start unselected.
+    Returns 1 (Да), 0 (Нет) or None.
+    """
+    choice = st.selectbox(label, ["— выберите —", "Да", "Нет"], index=0)
+    return None if choice.startswith("—") else int(choice == "Да")
 
 
 # ── UI ───────────────────────────────────────────────────────────────────
@@ -42,24 +51,24 @@ with st.form("fertility_form"):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        rodi = st.checkbox("Роды в анамнезе")
+        rodi = yes_no("Роды в анамнезе")
     with col2:
-        spaechniy = st.checkbox("Спаечный процесс в малом тазу")
+        spaechniy = yes_no("Спаечный процесс в малом тазу")
     with col3:
-        gisteroskopiya = st.checkbox("Гистероскопия в анамнезе")
+        gisteroskopiya = yes_no("Гистероскопия в анамнезе")
 
     submitted = st.form_submit_button("Анализ результатов")
 
 # ── logic & result ───────────────────────────────────────────────────────
 if submitted:
-    if None in (no2, no3):
-        st.warning("Пожалуйста, заполните все числовые поля.")
+    if None in (no2, no3, rodi, spaechniy, gisteroskopiya):
+        st.warning("Пожалуйста, заполните все поля.")
     else:
         x1 = no2
         x2 = no3
-        x3 = int(rodi)
-        x4 = int(spaechniy)
-        x5 = int(gisteroskopiya)
+        x3 = rodi
+        x4 = spaechniy
+        x5 = gisteroskopiya
 
         score = (
             0.542 * x1

@@ -18,7 +18,14 @@ def stage_badge(text, bad=True):
     color = "#dc3545" if bad else "#198754"
     return f"<div style='text-align:center; font-weight:600; color:{color};'>{text}</div>"
 
-
+st.markdown(
+    """
+    <style>
+    div[data-testid="stFormSubmitRegPrompt"] {display: none;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 # ─────────────── UI / logic ─────────────
 st.header("OMM LUNG MATURITY PREDICT")
 

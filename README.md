@@ -1,2 +1,2 @@
-# Endometriosis prediction app
-To run locally: `streamlit run app.py` or `streamlit run app_1.py` for Immunohistochemistry
+# OMM appS
+To run locally: `streamlit run %appname%.py`

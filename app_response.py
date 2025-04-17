@@ -6,7 +6,11 @@ def get_float(label, placeholder, *, min_v: float, max_v: float):
     Numeric text box that starts empty.
     Returns float or None after validating range and format.
     """
-    raw = st.text_input(label, placeholder)
+    raw = st.text_input(
+        label,
+        value="",               # ◀︎ leave blank
+        placeholder=placeholder # ◀︎ grey hint
+    )
     if raw == "":
         return None
     try:
@@ -21,10 +25,6 @@ def get_float(label, placeholder, *, min_v: float, max_v: float):
 
 
 def yes_no(label: str) -> int | None:
-    """
-    Drop‑down with a placeholder so it can start unselected.
-    Returns 1 (Да), 0 (Нет) or None.
-    """
     choice = st.selectbox(label, ["— выберите —", "Да", "Нет"], index=0)
     return None if choice.startswith("—") else int(choice == "Да")
 
@@ -37,14 +37,14 @@ with st.form("fertility_form"):
 
     no2 = get_float(
         "Концентрация эндогенного нитрита NO₂ в сыворотке венозной крови (мкмоль/л)",
-        "например 12.345",
+        "",
         min_v=0.0,
         max_v=999.999,
     )
 
     no3 = get_float(
         "Концентрация нитрата NO₃ в сыворотке венозной крови (мкмоль/л)",
-        "например 34.567",
+        "",
         min_v=0.0,
         max_v=999.999,
     )
@@ -64,18 +64,12 @@ if submitted:
     if None in (no2, no3, rodi, spaechniy, gisteroskopiya):
         st.warning("Пожалуйста, заполните все поля.")
     else:
-        x1 = no2
-        x2 = no3
-        x3 = rodi
-        x4 = spaechniy
-        x5 = gisteroskopiya
-
         score = (
-            0.542 * x1
-            + 0.154 * x2
-            - 4.125 * x3
-            + 10.337 * x4
-            - 8.762 * x5
+            0.542 * no2
+            + 0.154 * no3
+            - 4.125 * rodi
+            + 10.337 * spaechniy
+            - 8.762 * gisteroskopiya
             - 4.637
         )
 

@@ -1,7 +1,7 @@
 import streamlit as st
 import math
 
-st.header('OMM POSTPARTUM PELVIC  DYSFUNCTIION')
+st.header('OMM POSTPARTUM PELVIC DYSFUNCTIION')
 st.title("Прогнозирование риска развития тазовых и уродинамических дисфункций женщин после родов")
 
 # 1) Radio buttons for question1

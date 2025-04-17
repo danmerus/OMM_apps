@@ -1,9 +1,8 @@
 import streamlit as st
 
-# ───────────────── helpers ──────────────────
-def num_input(label, *, key, placeholder=""):
-    """Numeric field that stays blank until user types something."""
-    raw = st.text_input(label, key=key, value="", placeholder=placeholder)
+# ─────────────── helpers ────────────────
+def num_input(label, *, key):
+    raw = st.text_input(label, key=key, value="", placeholder="")
     if raw == "":
         return None
     try:
@@ -15,87 +14,47 @@ def num_input(label, *, key, placeholder=""):
 
 def stage_badge(text, bad=True):
     color = "#dc3545" if bad else "#198754"
-    return f"<div style='text-align:center; font-weight:600; color:{color};'>{text}</div>"
+    return f"<div style='text-align:center;font-weight:600;color:{color};'>{text}</div>"
 
 
-def model_block(title, inputs, formula, threshold):
-    """
-    Render one model column.
-
-    inputs   – list of (label, key) pairs
-    formula  – lambda returning score from the collected floats
-    threshold– cutoff above which stage = 'Каналикулярная'
-    """
-    st.subheader(title)
-    result = st.empty()  # placeholder on top
-
-    with st.form(key=title):
-        vals = [num_input(lbl, key=key) for lbl, key in inputs]
-        submitted = st.form_submit_button("Расчёт")
-
-    if submitted:
-        if any(v is None for v in vals):
-            result.warning("Пожалуйста, заполните все поля.")
-        else:
-            score = formula(*vals)
-            result.markdown(
-                stage_badge(
-                    "Каналикулярная стадия" if score >= threshold else "Саккулярная стадия",
-                    bad=score >= threshold,
-                ),
-                unsafe_allow_html=True,
-            )
-
-
-# ──────────────── layout / CSS ───────────────
+# hide both possible versions of the grey hint
 st.markdown(
     """
     <style>
-    /* hide grey "Press Enter to submit" helper inside st.form() */
-    div[data-testid="stFormSubmitPrompt"] {display: none;}
+    div[data-testid="stFormSubmitPrompt"],
+    div[data-testid="stFormSubmitRegPrompt"] {display:none;}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 st.header("OMM LUNG MATURITY PREDICT")
+
 col1, col2, col3 = st.columns(3)
 
-# ─────────────── Models ──────────────────────
+# ───────────── Model 1 ─────────────
 with col1:
-    model_block(
-        "Модель 1",
-        [
-            ("Уровень цитокина TNF (пг/мл):", "m1_tnf"),
-            ("Уровень Na⁺ в газах крови (первый час жизни):", "m1_na"),
-        ],
-        lambda tnf, na: -3.287 + 0.215 * tnf + 0.0321 * na,
-        threshold=0.5,
-    )
+    st.subheader("Модель 1")
 
-with col2:
-    model_block(
-        "Модель 2",
-        [
-            ("Уровень цитокина TNF (пг/мл):", "m2_tnf"),
-            ("Уровень Na⁺ в газах крови (первый час жизни):", "m2_na"),
-            ("Уровень гематокрита (первый анализ):", "m2_hct"),
-            ("MAX плотность лёгочной ткани (лат. точка 6‑го МР):", "m2_density"),
-        ],
-        lambda tnf, na, hct, dens: (
-            -30.649 + 0.1969 * na - 0.0258 * hct + 0.0242 * dens + 0.2189 * tnf
-        ),
-        threshold=0.68,
-    )
+    with st.form("model1"):
+        v_leuk = num_input("TNF (пг/мл):", key="m1_tnf")
+        v_na   = num_input("Na⁺ (первый час):", key="m1_na")
 
-with col3:
-    model_block(
-        "Модель 3",
-        [
-            ("Уровень цитокина TNF (пг/мл):", "m3_tnf"),
-            ("Уровень цитокина NSE (мкг/л):", "m3_nse"),
-            ("Уровень ПКТ (нг/мл):", "m3_pkt"),
-        ],
-        lambda tnf, nse, pkt: -12.345 + 0.11 * tnf + 0.33 * nse + 0.42 * pkt,
-        threshold=0.6,
-    )
+        btn_box = st.empty()                       # ← reserve slot for the button
+        submitted1 = btn_box.form_submit_button("Расчёт")
+
+    # after the form: replace button with result
+    if submitted1:
+        if None in (v_leuk, v_na):
+            btn_box.warning("Пожалуйста, заполните все поля.")
+        else:
+            score = -3.287 + 0.215 * v_leuk + 0.0321 * v_na
+            btn_box.markdown(
+                stage_badge(
+                    "Каналикулярная стадия" if score >= 0.5 else "Саккулярная стадия",
+                    bad=score >= 0.5,
+                ),
+                unsafe_allow_html=True,
+            )
+
+# ───────────── copy the same btn_box pattern to Model 2 & 3 ─────────────

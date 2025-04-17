@@ -4,7 +4,14 @@ import streamlit as st
 def num_input(label, *, key, placeholder=""):
     """Numeric field that stays blank until user types something."""
     raw = st.text_input(label, key=key, value="", placeholder=placeholder)
-    return None if raw == "" else float(raw.replace(",", "."))
+    if raw == "":
+        return None
+    # Accept comma decimals; reject anything else that isn't a valid float
+    try:
+        return float(raw.replace(",", "."))
+    except ValueError:
+        st.warning(f"«{raw}» не является числом")
+        return None
 
 
 def stage_badge(text, bad=True):

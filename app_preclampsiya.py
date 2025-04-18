@@ -46,9 +46,6 @@ if st.button("Calculate"):
     # compute prognostic index D
     D = -0.287 * x1 + 1.166 * x2 + 3.460 * x3 + 5.860 * x4 - 31.912
 
-    st.markdown("---")
-    st.write(f"### Прогностический индекс D = **{D:.3f}**")
-
     # red background for high risk, green for low
     if D >= 0:
         st.error("⚠️ Высокий риск развития преэклампсии")

@@ -39,7 +39,7 @@ def classify_risk(m_value: float) -> str:
 
 # ── UI ─────────────────────────────────────────────────────────────────────────
 
-st.set_page_config(page_title="Macrosomia Risk Predictor", layout="centered")
+# st.set_page_config(page_title="Macrosomia Risk Predictor", layout="centered")
 st.header("ОMM MACROSOMIA IN GESTATIONAL MELLITUS AFTER ART")
 
 st.markdown(

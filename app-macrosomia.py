@@ -1,15 +1,5 @@
 import streamlit as st
 
-"""
-Fetal Macrosomia Risk Predictor (after ART & GDM)
-------------------------------------------------
-A small Streamlit app that implements the scoring model described in the Russian
-patent/formula.  Enter the patient’s laboratory values and clinical parameters to
-get the predicted risk of fetal macrosomia.
-Run with:
-    streamlit run risk_prediction_app.py
-"""
-
 # ── Model constants ────────────────────────────────────────────────────────────
 COEF_AST = 0.168        # x1  Aspartate aminotransferase (AST)  (U/L)
 COEF_HDL = -3.944       # x2  HDL cholesterol (mmol/L)

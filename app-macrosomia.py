@@ -86,7 +86,11 @@ if st.button("Рассчитать риск"):
 
     st.subheader("Результат")
     # st.metric(label="Индекс M", value=f"{m_value:.3f}")
-    st.write(f"**{risk_text}**")
+    # st.write(f"**{risk_text}**")
+    if m_value > 0:
+        st.error(risk_text)
+    else:
+        st.success(risk_text)
 
     # with st.expander("Подробнее о формуле"):
     #     st.code(

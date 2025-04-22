@@ -39,7 +39,7 @@ geno = st.selectbox(
 # Button to run calculation
 if st.button("Calculate"):
     # map inputs to x1–x4
-    x1 = 0 if program.startswith("Перенос в цикле стимуляции") else 1
+    x1 = 0 if program.startswith("Перенос эмбриона в цикле стимуляции суперовуляции") else 1
     x3 = 1 if cvd == "Да" else 0
     x4 = {"Доминантный вариант (GG)": 0, "Гетерозиготный вариант (GA)": 1, "Рецессивный вариант (АА)": 2}[geno]
 

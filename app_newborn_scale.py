@@ -11,14 +11,14 @@ st.subheader("Шкала ОММ.MedNeo")
 # ---------- helpers ---------------------------------------------------------
 SECTION = """
 <style>
-.big-box {{
+.big-box {
     width: 100%;
     border-radius: 0.6rem;
     padding: 1.4rem;
     font-weight: 700;
     font-size: 1.2rem;
     text-align: center;
-}}
+}
 .good  {{background:#19b16b;color:#fff;}}
 .ok    {{background:#ff6788;color:#fff;}}
 .bad   {{background:#f82222;color:#fff;}}

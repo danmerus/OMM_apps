@@ -19,9 +19,9 @@ SECTION = """
     font-size: 1.2rem;
     text-align: center;
 }
-.good  {{background:#19b16b;color:#fff;}}
-.ok    {{background:#ff6788;color:#fff;}}
-.bad   {{background:#f82222;color:#fff;}}
+.good  {background:#19b16b;color:#fff;}
+.ok    {background:#ff6788;color:#fff;}
+.bad   {background:#f82222;color:#fff;}
 </style>
 """
 

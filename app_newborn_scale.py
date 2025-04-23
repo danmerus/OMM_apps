@@ -97,8 +97,8 @@ if submitted:
     )
 
     if score <= 2:
-        st.markdown(f'<div class="big-box good">Состояние средней степени тяжести — прогноз благоприятный (сумма баллов {score})</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="big-box good">Состояние средней степени тяжести — прогноз благоприятный </div>', unsafe_allow_html=True)
     elif score <= 8:
-        st.markdown(f'<div class="big-box ok">Состояние тяжёлое — прогноз благоприятный (сумма баллов {score})</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="big-box ok">Состояние тяжёлое — прогноз благоприятный </div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="big-box bad">Состояние крайне тяжёлое — прогноз неблагоприятный (сумма баллов {score})</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="big-box bad">Состояние крайне тяжёлое — прогноз неблагоприятный </div>', unsafe_allow_html=True)

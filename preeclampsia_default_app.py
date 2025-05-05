@@ -16,7 +16,7 @@ with tabs[0]:
             min_value=15.0, max_value=60.0, step=0.1,
         )
         fgr = st.checkbox("Задержка роста плода")
-        alt = st.number_input("Уровень АЛТ (ед/л)", format="%.2f")
+        alt = st.number_input("Уровень АСТ (ед/л)", format="%.2f")
         albumin = st.number_input("Уровень альбумина (г/л)", format="%.2f")
         apoe_option = st.radio(
             "Полиморфизм АроЕ",

@@ -82,7 +82,7 @@ if res is not None:
     D = res["D"]
     lbl = res["label"]
     if D > 0:
-        st.error(f"**{lbl}**  \nСчёт D = **{D:.3f}** (порог 0)")
+        st.error(f"**{lbl}**")
     else:
-        st.success(f"**{lbl}**  \nСчёт D = **{D:.3f}** (порог 0)")
+        st.success(f"**{lbl}**")
 

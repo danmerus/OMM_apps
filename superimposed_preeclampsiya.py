@@ -65,6 +65,6 @@ if st.button("Рассчитать"):
 res = st.session_state.last_result
 if res is not None:
     if res["D"] > 0:
-        st.error(f"**{res['label']}**  \nСчёт D = **{res['D']:.3f}** (порог 0)")
+        st.error(f"**{res['label']}**")
     else:
-        st.success(f"**{res['label']}**  \nСчёт D = **{res['D']:.3f}** (порог 0)")
+        st.success(f"**{res['label']}**")

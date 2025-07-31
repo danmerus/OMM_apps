@@ -47,19 +47,19 @@ st.subheader("Ввод признаков")
 c1, c2 = st.columns(2)
 
 with c1:
-    X1 = 1 if st.checkbox("Гиподинамия (да)", value=False) else 0
-    X2 = 1 if st.checkbox("Хроническая АГ в предыдущую беременность (да)", value=False) else 0
-    X3 = 1 if st.checkbox("ДАД >100 мм рт. ст. в I триместре (да)", value=False) else 0
-    X4 = 1 if st.checkbox("ДАД >100 мм рт. ст. во II триместре (да)", value=False) else 0
+    X1 = 1 if st.checkbox("Гиподинамия", value=False) else 0
+    X2 = 1 if st.checkbox("Хроническая АГ в предыдущую беременность", value=False) else 0
+    X3 = 1 if st.checkbox("ДАД >100 мм рт. ст. в I триместре", value=False) else 0
+    X4 = 1 if st.checkbox("ДАД >100 мм рт. ст. во II триместре", value=False) else 0
 
 with c2:
     X5 = st.number_input(
         "Уровень экспрессии miR-181a (I триместр)",
-        min_value=0.0, step=0.0001, format="%.6f", value=0.0,
+        min_value=0.0, step=0.0001, format="%.6f", value='',
     )
     X6 = st.number_input(
         "Уровень экспрессии miR-221 (I триместр)",
-        min_value=0.0, step=0.0001, format="%.6f", value=0.0,
+        min_value=0.0, step=0.0001, format="%.6f", value='',
     )
 
 st.markdown("---")

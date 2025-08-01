@@ -25,7 +25,7 @@ def parse_float(s: str):
     except ValueError:
         return None
 
-st.title("🩺 OMM SUPERIMPOSED PREEКLAMPSIA PREDICT")
+st.title("🩺 OMM SUPERIMPOSED PREECLAMPSIA PREDICT")
 st.caption("Калькулятор оценки риска преэклампсии у пациенток с хронической артериальной гипертензией.")
 
 st.subheader("Ввод признаков")

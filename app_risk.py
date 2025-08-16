@@ -75,7 +75,6 @@ if submitted:
                 "X4 (Лактат, ммоль/л)": float(x4),
                 "DI": round(di, 6),
                 "P": round(p, 6),
-                "Порог": threshold
             }
         )
 

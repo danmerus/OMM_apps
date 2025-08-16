@@ -51,13 +51,13 @@ def classify(p: float, thr: float) -> str:
 if submitted:
     di = compute_di(x1, int(x2), float(x3), float(x4))
     p = logistic(di)
-    verdict = classify(p, threshold)
+    verdict = classify(p, 0.4)
 
     st.subheader("Результаты")
     c1, c2, c3 = st.columns(3)
-    c1.metric("DI", f"{di:.3f}")
-    c2.metric("P (вероятность)", f"{p:.2%}")
-    c3.metric("Порог", f"{threshold:.0%}")
+    # c1.metric("DI", f"{di:.3f}")
+    # c2.metric("P (вероятность)", f"{p:.2%}")
+    # c3.metric("Порог", f"{threshold:.0%}")
 
     # Visual hint
     st.progress(min(max(p, 0.0), 1.0))

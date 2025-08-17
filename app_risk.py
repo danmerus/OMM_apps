@@ -54,7 +54,7 @@ with st.form("input_form"):
         # selectbox с пустым состоянием
         x1_opt = st.selectbox(
             "Признаки материнской мальперфузии",
-            options=["— выберите —", "Нет (0)", "Есть (1)"],
+            options=["— выберите —", "Нет", "Есть"],
             index=0,
         )
         x2_str = st.text_input(

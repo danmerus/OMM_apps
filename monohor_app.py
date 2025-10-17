@@ -7,7 +7,6 @@ import pandas as pd
 
 st.set_page_config(
     page_title="Риск в неонатальном периоде (MCDA, sFGR)",
-    page_icon="🍼",
     layout="centered",
 )
 

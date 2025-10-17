@@ -24,18 +24,18 @@ st.divider()
 st.subheader("Ввод клинико-гистологических признаков")
 
 def yes_no_to_int(label: str, key: str):
-    choice = st.radio(label, ["Нет (0)", "Есть (1)"], horizontal=True, key=key)
+    choice = st.radio(label, ["Нет", "Есть"], horizontal=True, key=key)
     return 1 if "Есть" in choice else 0
 
 col1, col2 = st.columns(2)
 with col1:
-    x1 = yes_no_to_int("Внутриутробная гибель моноди близнеца (X₁)", "x1")
-    x2 = yes_no_to_int("Преждевременный разрыв оболочек (X₂)", "x2")
-    x4 = yes_no_to_int("Острая плацентарная недостаточность (X₄)", "x4")
+    x1 = yes_no_to_int("Внутриутробная гибель моноди близнеца ", "x1")
+    x2 = yes_no_to_int("Преждевременный разрыв оболочек ", "x2")
+    x4 = yes_no_to_int("Острая плацентарная недостаточность ", "x4")
 with col2:
-    x5 = yes_no_to_int("Интервиллузит (X₅)", "x5")
+    x5 = yes_no_to_int("Интервиллузит ", "x5")
     x3 = st.number_input(
-        "Оценка по шкале Апгар на 1-й минуте (X₃)", min_value=0.0, max_value=10.0, step=0.5, value=7.0
+        "Оценка по шкале Апгар на 1-й минуте ", min_value=0.0, max_value=10.0, step=0.5, value=7.0
     )
 
 with st.form("calc_form"):

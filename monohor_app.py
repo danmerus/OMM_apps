@@ -34,8 +34,9 @@ with col1:
 with col2:
     x5 = yes_no_to_int("Интервиллузит ", "x5")
     x3 = st.number_input(
-        "Оценка по шкале Апгар на 1-й минуте ", min_value=0.0, max_value=10.0, step=0.5, value=7.0
-    )
+    "Оценка по шкале Апгар на 1-й минуте",
+    min_value=0, max_value=10, step=1, value=7, format="%d"
+)
 
 with st.form("calc_form"):
     submitted = st.form_submit_button("Рассчитать")

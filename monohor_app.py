@@ -39,7 +39,7 @@ with col2:
     )
 
 with st.form("calc_form"):
-    submitted = st.form_submit_button("Рассчитать DI")
+    submitted = st.form_submit_button("Рассчитать")
 
 THRESHOLD = 0.875
 
@@ -61,7 +61,6 @@ if submitted:
         color_block = "warning"
 
     st.subheader("Результат")
-    st.metric("DI", f"{di:.3f}", help="Диагностический индекс согласно формуле")
 
     if color_block == "error":
         st.error(f"🧮 {risk_text}")

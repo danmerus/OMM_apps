@@ -9,7 +9,7 @@ col1, col2 = st.columns(2)
 with col1:
     hypodynamia = st.checkbox("Сниженная физическая активность (менее 21 балла по опроснику IPAQ)", value=False)
     ckd = st.checkbox("Хроническая болезнь почек", value=False)
-    chronic_ht_prev_preg = st.checkbox("Хроническая артериальная гипертензия в предыдущую беременность", value=False)
+    chronic_ht_prev_preg = st.checkbox("Хроническая артериальная гипертензия", value=False)
 with col2:
     systolic = st.number_input("Систолическое АД при первом визите (мм рт. ст.)",
                                min_value=70, max_value=220, value=120, step=1)

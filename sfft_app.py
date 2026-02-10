@@ -21,9 +21,9 @@ with st.form("inputs"):
     ktr2 = st.number_input("КТР2 (мм)", min_value=0.0, value=50.0, step=0.1)
     ktr_diff = ktr1 - ktr2
 
-    pi2 = st.selectbox("ПИ 2-го плода более 95%", options=[0, 1], format_func=lambda x: "Да (1)" if x == 1 else "Нет (0)")
+    pi2 = st.selectbox("ПИ 2-го плода более 95%", options=[0, 1], format_func=lambda x: "Да" if x == 1 else "Нет")
 
-    tvp_gt3 = st.selectbox("ТВП 1 или 2 плода > 3 мм", options=[0, 1], format_func=lambda x: "Да (1)" if x == 1 else "Нет (0)")
+    tvp_gt3 = st.selectbox("ТВП 1 или 2 плода > 3 мм", options=[0, 1], format_func=lambda x: "Да" if x == 1 else "Нет")
 
     submitted = st.form_submit_button("Рассчитать")
 
@@ -40,24 +40,7 @@ if submitted:
     col2.metric("Вероятность P", f"{P:.3f}")
 
     if P < 0.25:
-        st.success("Классификация: **не СФФТ** (P < 0.25)")
+        st.success("Классификация: **не СФФТ** ")
     else:
-        st.error("Классификация: **СФФТ** (P ≥ 0.25)")
+        st.error("Классификация: **СФФТ** ")
 
-    st.markdown("### Детали расчёта")
-    st.write(
-        {
-            "ПХ": ph,
-            "КТР1": ktr1,
-            "КТР2": ktr2,
-            "КТР1-КТР2": ktr_diff,
-            "ПИ_2 (95%)": pi2,
-            "ТВП>3": tvp_gt3,
-            "F": F,
-            "P": P,
-            "Порог": 0.25,
-        }
-    )
-
-    with st.expander("Качество модели (как в описании)"):
-        st.write("ППК (AUC) = 0.85; ДИ (0.73; 0.96); p < 0.001")

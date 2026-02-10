@@ -15,7 +15,7 @@ st.markdown("---")
 with st.form("inputs"):
     st.subheader("Ввод признаков")
 
-    ph = st.selectbox("ПХ — предлежание хориона", options=[0, 1], format_func=lambda x: "Есть (1)" if x == 1 else "Нет (0)")
+    ph = st.selectbox("ПХ — предлежание хориона", options=[0, 1], format_func=lambda x: "Есть" if x == 1 else "Нет")
 
     ktr1 = st.number_input("КТР1 (мм)", min_value=0.0, value=50.0, step=0.1)
     ktr2 = st.number_input("КТР2 (мм)", min_value=0.0, value=50.0, step=0.1)

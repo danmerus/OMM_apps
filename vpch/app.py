@@ -15,14 +15,14 @@ st.set_page_config(
 @st.cache_resource
 def load_all_models():
     models = {
-        "surg": joblib.load("./vpch/model_surg.pkl"),
-        "obs":  joblib.load("./vpch/model_obs.pkl"),
+        "surg": joblib.load("model_surg.pkl"),  # plain RandomForestClassifier
+        "obs":  joblib.load("model_obs.pkl"),
     }
-    with open("./vpch/feature_cols.json", encoding="utf-8") as f:
+    with open("feature_cols.json", encoding="utf-8") as f:
         cols = json.load(f)
-    with open("./vpch/feature_importances.json", encoding="utf-8") as f:
+    with open("feature_importances.json", encoding="utf-8") as f:
         fi = json.load(f)
-    return models, cols, fi
+    return models, cols, fi  # models are plain RandomForestClassifier objects
 
 
 ALL_MODELS, feature_cols, fi_data = load_all_models()
@@ -202,10 +202,9 @@ with tab_pred:
         submitted = st.form_submit_button("🔮 Рассчитать прогноз", type="primary")
 
     if submitted:
-        bundle  = ALL_MODELS[group_key]
-        row     = pd.DataFrame([{c: inputs.get(c, 0) for c in feature_cols}])[feature_cols]
-        row_imp = bundle["imputer"].transform(row.values)  # numpy → no column-name check
-        p       = bundle["rf"].predict_proba(row_imp)[0][1]
+        rf  = ALL_MODELS[group_key]
+        row = pd.DataFrame([{c: inputs.get(c, 0) for c in feature_cols}])[feature_cols]
+        p   = rf.predict_proba(row.values)[0][1]
 
         st.markdown("---")
         label = "✅ Положительный исход" if p >= 0.5 else "❌ Отрицательный исход"

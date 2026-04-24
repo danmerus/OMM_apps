@@ -15,8 +15,8 @@ st.set_page_config(
 @st.cache_resource
 def load_all_models():
     models = {
-        "surg": joblib.load("model_surg.pkl"),
-        "obs":  joblib.load("model_obs.pkl"),
+        "surg": joblib.load("./vpch/model_surg.pkl"),
+        "obs":  joblib.load("./vpch/model_obs.pkl"),
     }
     with open("feature_cols.json", encoding="utf-8") as f:
         cols = json.load(f)

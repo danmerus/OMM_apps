@@ -18,9 +18,9 @@ def load_all_models():
         "surg": joblib.load("./vpch/model_surg.pkl"),
         "obs":  joblib.load("./vpch/model_obs.pkl"),
     }
-    with open("feature_cols.json", encoding="utf-8") as f:
+    with open("./vpch/feature_cols.json", encoding="utf-8") as f:
         cols = json.load(f)
-    with open("feature_importances.json", encoding="utf-8") as f:
+    with open("./vpch/feature_importances.json", encoding="utf-8") as f:
         fi = json.load(f)
     return models, cols, fi
 

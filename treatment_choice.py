@@ -123,9 +123,6 @@ with tab_pred:
                        + "; ".join(f"{f['name']} (в данных {_fmt(f['min'])}–{_fmt(f['max'])})"
                                    for f in outside))
 
-    st.caption(f"Модель обучена на данных {model['n_patients']} пациенток. "
-               "Рекомендация не заменяет клиническое решение врача.")
-
 # ── Tab 2: metrics ───────────────────────────────────────────────────────────
 with tab_metrics:
     m = model["metrics"]

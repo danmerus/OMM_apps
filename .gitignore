@@ -1,0 +1,5 @@
+# Patient data must never be committed
+*.xlsx
+*.xls
+__pycache__/
+treatment_choice_confusion_matrix.png

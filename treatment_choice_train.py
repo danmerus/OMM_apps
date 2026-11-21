@@ -221,42 +221,65 @@ def _input_kind(col: pd.Series) -> str:
 
 
 def save_metrics_png(report_text: str, note: str, cm: np.ndarray, path: Path) -> bool:
-    """One picture: classification report on top, confusion matrix below."""
+    """One picture in the style of the clinicians' example: the report as dark
+    terminal output, with the confusion matrix (white card) underneath."""
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        from matplotlib import font_manager
     except ImportError:
         print("matplotlib не установлен — картинка не сохранена (pip install matplotlib).")
         return False
-    # Lay out in inches: measure the two text blocks, then put the matrix under them.
-    W, LEFT, GAP = 5.6, 0.25, 0.2
-    fig = plt.figure(figsize=(W, 8), dpi=130)
-    t_report = fig.text(0, 0, "Classification report:\n" + report_text.rstrip("\n"),
-                        family="monospace", fontsize=9, va="top", ha="left")
-    t_note = fig.text(0, 0, note, fontsize=8, color="#555", va="top", ha="left")
+    from io import BytesIO
+
+    S = 2                         # draw at 2x so the picture stays sharp
+    DPI = 96 * S                  # at this dpi 10.5 pt text is 14 px (x2), as in the example
+    BG, FG = "#1f1f1f", "#cccccc"
+
+    # 1) Confusion matrix on its own white card
+    card = plt.figure(figsize=(4.5, 3.05), dpi=DPI)
+    ax = card.add_subplot()
+    try:
+        import seaborn as sns
+        sns.heatmap(cm, annot=True, fmt="d", cmap="Greens", ax=ax)
+    except ImportError:
+        im = ax.imshow(cm, cmap="Greens", aspect="auto")
+        for i in range(2):
+            for j in range(2):
+                ax.text(j, i, str(cm[i, j]), ha="center", va="center",
+                        color="white" if cm[i, j] > cm.max() / 2 else "black")
+        ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
+        card.colorbar(im, ax=ax)
+    ax.set_title("Confusion matrix"); ax.set_xlabel("Predicted"); ax.set_ylabel("True")
+    buf = BytesIO()
+    card.savefig(buf, format="png", facecolor="white", bbox_inches="tight", pad_inches=0.04)
+    plt.close(card)
+    buf.seek(0)
+    img = plt.imread(buf)
+    img_h, img_w = img.shape[:2]
+
+    # 2) Dark canvas: report text, then the card
+    mono = "monospace"
+    for name in ("Consolas", "Cascadia Mono", "DejaVu Sans Mono"):
+        try:
+            font_manager.findfont(name, fallback_to_default=False)
+            mono = name
+            break
+        except ValueError:
+            continue
+    text = "Classification report:\n" + report_text.rstrip("\n") + "\n\n" + note
+    fig = plt.figure(figsize=(1, 1), dpi=DPI, facecolor=BG)
+    t = fig.text(0, 0, text, family=mono, fontsize=10.5, color=FG, va="top", ha="left", linespacing=1.7)
     fig.canvas.draw()
-    renderer = fig.canvas.get_renderer()
-    h_report = t_report.get_window_extent(renderer).height / fig.dpi
-    h_note = t_note.get_window_extent(renderer).height / fig.dpi
-    matrix_h = 3.3                                   # height of the matrix itself
-    H = GAP + h_report + GAP + h_note + 0.55 + matrix_h + 0.6
-    fig.set_figheight(H)
-    y = H - GAP
-    t_report.set_position((LEFT / W, y / H))
-    y -= h_report + GAP
-    t_note.set_position((LEFT / W, y / H))
-    ax = fig.add_axes([0.8 / W, 0.6 / H, 3.4 / W, matrix_h / H])
-    im = ax.imshow(cm, cmap="Greens", vmin=0, aspect="auto")
-    for i in range(2):
-        for j in range(2):
-            ax.text(j, i, str(cm[i, j]), ha="center", va="center",
-                    color="white" if cm[i, j] > cm.max() / 2 else "black", fontsize=13)
-    ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
-    ax.set_xticklabels(["0", "1"]); ax.set_yticklabels(["0", "1"])
-    ax.set_xlabel("Predicted"); ax.set_ylabel("True"); ax.set_title("Confusion matrix")
-    fig.colorbar(im, cax=fig.add_axes([4.45 / W, 0.6 / H, 0.17 / W, matrix_h / H]))
-    fig.savefig(path, bbox_inches="tight", pad_inches=0.15, facecolor="white")
+    box = t.get_window_extent(fig.canvas.get_renderer())
+    pad_x, pad_top, gap, pad_bottom = 10 * S, 12 * S, 22 * S, 14 * S
+    W = max(box.width + 2 * pad_x, img_w + 2 * 19 * S)
+    H = pad_top + box.height + gap + img_h + pad_bottom
+    fig.set_size_inches(W / DPI, H / DPI)
+    t.set_position((pad_x / W, 1 - pad_top / H))
+    fig.figimage(img, xo=19 * S, yo=pad_bottom, origin="upper")
+    fig.savefig(path, dpi=DPI, facecolor=BG)
     plt.close(fig)
     return True
 
@@ -356,8 +379,9 @@ def main() -> None:
     print(f"Saved: {report_path}")
     print(f"Saved: {assoc_path}")
     png_path = args.out_dir / "metrics.png"
-    note = (f"Группа 0 — {CLASS_NAMES[0].lower()}, Группа 1 — {CLASS_NAMES[1].lower()}.\n"
-            f"Кросс-валидация leave-one-out, {len(df)} пациенток.")
+    note = (f"Группа 0 — {CLASS_NAMES[0].lower()}\n"
+            f"Группа 1 — {CLASS_NAMES[1].lower()}\n"
+            f"Кросс-валидация leave-one-out, {len(df)} пациенток")
     if save_metrics_png(report_text, note, cm, png_path):
         print(f"Saved: {png_path}")
 

@@ -2,4 +2,4 @@
 *.xlsx
 *.xls
 __pycache__/
-treatment_choice_confusion_matrix.png
+treatment_choice_metrics/

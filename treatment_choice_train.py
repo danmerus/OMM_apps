@@ -5,7 +5,7 @@ Usage:
 
 Writes data/treatment_choice_model.json (the only file the app needs) and saves
 the cross-validated metrics locally in ./treatment_choice_metrics/ (change with
---out-dir): report.txt, confusion_matrix.png, feature_association.csv.
+--out-dir): report.txt, metrics.png (report + confusion matrix), feature_association.csv.
 
 Do not commit the Excel file (it contains patient surnames) or the metrics folder.
 
@@ -220,7 +220,8 @@ def _input_kind(col: pd.Series) -> str:
     return "continuous"
 
 
-def save_confusion_png(cm: np.ndarray, path: Path) -> bool:
+def save_metrics_png(report_text: str, note: str, cm: np.ndarray, path: Path) -> bool:
+    """One picture: classification report on top, confusion matrix below."""
     try:
         import matplotlib
         matplotlib.use("Agg")
@@ -228,8 +229,25 @@ def save_confusion_png(cm: np.ndarray, path: Path) -> bool:
     except ImportError:
         print("matplotlib не установлен — картинка не сохранена (pip install matplotlib).")
         return False
-    fig, ax = plt.subplots(figsize=(4.6, 3.8), dpi=120)
-    im = ax.imshow(cm, cmap="Greens", vmin=0)
+    # Lay out in inches: measure the two text blocks, then put the matrix under them.
+    W, LEFT, GAP = 5.6, 0.25, 0.2
+    fig = plt.figure(figsize=(W, 8), dpi=130)
+    t_report = fig.text(0, 0, "Classification report:\n" + report_text.rstrip("\n"),
+                        family="monospace", fontsize=9, va="top", ha="left")
+    t_note = fig.text(0, 0, note, fontsize=8, color="#555", va="top", ha="left")
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    h_report = t_report.get_window_extent(renderer).height / fig.dpi
+    h_note = t_note.get_window_extent(renderer).height / fig.dpi
+    matrix_h = 3.3                                   # height of the matrix itself
+    H = GAP + h_report + GAP + h_note + 0.55 + matrix_h + 0.6
+    fig.set_figheight(H)
+    y = H - GAP
+    t_report.set_position((LEFT / W, y / H))
+    y -= h_report + GAP
+    t_note.set_position((LEFT / W, y / H))
+    ax = fig.add_axes([0.8 / W, 0.6 / H, 3.4 / W, matrix_h / H])
+    im = ax.imshow(cm, cmap="Greens", vmin=0, aspect="auto")
     for i in range(2):
         for j in range(2):
             ax.text(j, i, str(cm[i, j]), ha="center", va="center",
@@ -237,9 +255,8 @@ def save_confusion_png(cm: np.ndarray, path: Path) -> bool:
     ax.set_xticks([0, 1]); ax.set_yticks([0, 1])
     ax.set_xticklabels(["0", "1"]); ax.set_yticklabels(["0", "1"])
     ax.set_xlabel("Predicted"); ax.set_ylabel("True"); ax.set_title("Confusion matrix")
-    fig.colorbar(im, ax=ax)
-    fig.tight_layout()
-    fig.savefig(path)
+    fig.colorbar(im, cax=fig.add_axes([4.45 / W, 0.6 / H, 0.17 / W, matrix_h / H]))
+    fig.savefig(path, bbox_inches="tight", pad_inches=0.15, facecolor="white")
     plt.close(fig)
     return True
 
@@ -338,8 +355,10 @@ def main() -> None:
     print(f"\nSaved: {MODEL_PATH}")
     print(f"Saved: {report_path}")
     print(f"Saved: {assoc_path}")
-    png_path = args.out_dir / "confusion_matrix.png"
-    if save_confusion_png(cm, png_path):
+    png_path = args.out_dir / "metrics.png"
+    note = (f"Группа 0 — {CLASS_NAMES[0].lower()}, Группа 1 — {CLASS_NAMES[1].lower()}.\n"
+            f"Кросс-валидация leave-one-out, {len(df)} пациенток.")
+    if save_metrics_png(report_text, note, cm, png_path):
         print(f"Saved: {png_path}")
 
 

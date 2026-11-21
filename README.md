@@ -11,7 +11,7 @@ python treatment_choice_train.py "ИСХОДЫ ДО ананмнез ИГХ ше
 ```
 
 This rewrites `data/treatment_choice_model.json` and saves the cross-validated metrics locally in
-`treatment_choice_metrics/` (`report.txt` with the classification report, `confusion_matrix.png`,
+`treatment_choice_metrics/` (`report.txt` with the classification report, `metrics.png` with the report and confusion matrix,
 `feature_association.csv`); `--out-dir` picks another folder. The app shows only the recommendation.
 Commit only the JSON: **never commit the Excel file, it contains surnames.**
 

@@ -1,73 +1,14 @@
-import streamlit as st
+import json
+import math
+from pathlib import Path
+
 import pandas as pd
-import numpy as np
-import joblib
 import plotly.graph_objects as go
-import warnings
-warnings.filterwarnings("ignore")
+import streamlit as st
 
-MODELS_PATH = "data/models.pkl"
-TOP_N_FEATURES = 20
-
-
-@st.cache_resource
-def load_models():
-    return joblib.load(MODELS_PATH)
-
-
-def make_prediction(models, feature_values: dict):
-    """Return (p_surg, p_wait) given dict {feature_name: value}."""
-    names = models["feature_names"]
-    x = np.array([feature_values.get(n, 0.0) for n in names]).reshape(1, -1)
-    p_surg = models["clf_surg"].predict_proba(x)[0][1]
-    p_wait = models["clf_wait"].predict_proba(x)[0][1]
-    return p_surg, p_wait
-
-
-def prob_bar_chart(p_surg, p_wait):
-    fig = go.Figure()
-    colors = ["#2196F3", "#4CAF50"]
-    labels = ["Хирургическое лечение", "Выжидательная тактика"]
-    values = [p_surg, p_wait]
-    for i, (lbl, val, col) in enumerate(zip(labels, values, colors)):
-        fig.add_trace(go.Bar(
-            x=[lbl], y=[val * 100],
-            marker_color=col,
-            text=[f"{val*100:.1f}%"],
-            textposition="outside",
-            name=lbl,
-        ))
-    fig.update_layout(
-        yaxis=dict(range=[0, 110], title="Вероятность успешного исхода (%)"),
-        xaxis_title="Метод лечения",
-        showlegend=False,
-        height=350,
-        margin=dict(t=20, b=20),
-    )
-    return fig
-
-
-def importance_chart(models):
-    top = models["top_features"]
-    imp_s = [models["imp_surg"][f] for f in top]
-    imp_w = [models["imp_wait"][f] for f in top]
-    short = [str(f)[:40] for f in top]
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(name="Хирургия", x=short, y=imp_s, marker_color="#2196F3"))
-    fig.add_trace(go.Bar(name="Выжидание", x=short, y=imp_w, marker_color="#4CAF50"))
-    fig.update_layout(
-        barmode="group",
-        xaxis_tickangle=-45,
-        yaxis_title="Важность признака",
-        height=400,
-        margin=dict(t=10, b=160),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02),
-    )
-    return fig
-
-
-# ── Streamlit UI ──────────────────────────────────────────────────────────────
+# Model file written by treatment_choice_train.py
+MODEL_PATH = Path(__file__).resolve().parent / "data" / "treatment_choice_model.json"
+BORDERLINE = 0.15   # closer than this to the threshold -> show "borderline" warning
 
 st.set_page_config(
     page_title="Выбор тактики лечения",
@@ -75,103 +16,173 @@ st.set_page_config(
     layout="wide",
 )
 
+
+@st.cache_data
+def load_model() -> dict:
+    return json.loads(MODEL_PATH.read_text(encoding="utf-8"))
+
+
+def favourable_probability(model: dict, values: dict) -> float:
+    """Chance of a favourable course (logistic regression stored as plain numbers)."""
+    z = model["intercept"]
+    for f in model["features"]:
+        z += f["coef"] * (values[f["name"]] - f["mean"]) / f["scale"]
+    return 1.0 / (1.0 + math.exp(-z))
+
+
+def _fmt(x: float) -> str:
+    return f"{x:g}"
+
+
+def feature_input(f: dict):
+    name, med = f["name"], f["median"]
+    if f["kind"] == "binary":
+        return float(st.selectbox(name, [0, 1], index=int(round(med)),
+                                  format_func=lambda v: "Да" if v else "Нет", key=name))
+    if f["kind"] == "integer":
+        return float(st.number_input(name, min_value=0, value=int(round(med)), step=1, key=name))
+    step = 1.0 if f["max"] - f["min"] > 50 else 0.1
+    return float(st.number_input(name, min_value=0.0, value=float(med), step=step, key=name))
+
+
+def probability_chart(p: float, threshold: float) -> go.Figure:
+    fig = go.Figure(go.Bar(
+        x=[p * 100], y=[""], orientation="h",
+        marker_color="#4CAF50" if p >= threshold else "#E57373",
+        text=[f"{p * 100:.0f}%"], textposition="inside", insidetextanchor="end",
+    ))
+    fig.add_vline(x=threshold * 100, line_dash="dash", line_color="#555",
+                  annotation_text=f"порог {threshold * 100:.0f}%", annotation_position="top")
+    fig.update_layout(
+        xaxis=dict(range=[0, 100], title="Вероятность благоприятного течения, %"),
+        height=170, margin=dict(t=30, b=10, l=10, r=10), showlegend=False,
+    )
+    return fig
+
+
+def confusion_chart(cm: list[list[int]]) -> go.Figure:
+    fig = go.Figure(go.Heatmap(
+        z=cm, x=["0", "1"], y=["0", "1"], colorscale="Greens", zmin=0,
+        text=cm, texttemplate="%{text}", textfont=dict(size=22),
+        hovertemplate="Истина: %{y}<br>Прогноз: %{x}<br>Пациентов: %{z}<extra></extra>",
+    ))
+    fig.update_layout(
+        title="Confusion matrix",
+        xaxis=dict(title="Predicted", type="category"),
+        yaxis=dict(title="True", type="category", autorange="reversed"),
+        height=380, width=440, margin=dict(t=50, b=10),
+    )
+    return fig
+
+
+# ── UI ───────────────────────────────────────────────────────────────────────
+
 st.title("🏥 Система поддержки выбора тактики лечения")
-st.caption("Алгоритм рекомендует метод лечения на основе признаков пациента (HPV, микробиом, цитология, ИГХ)")
 
-with st.spinner("Загрузка моделей..."):
-    models = load_models()
+if not MODEL_PATH.exists():
+    st.error("Модель не найдена. Запустите `python treatment_choice_train.py <файл.xlsx>` и загрузите "
+             "`data/treatment_choice_model.json` в репозиторий.")
+    st.stop()
 
+model = load_model()
+thr = model["threshold"]
+feats = model["features"]
 
-tabs = st.tabs(["🔍 Прогноз для пациента", "📈 Важность признаков"])
+st.caption(
+    "Программа оценивает вероятность благоприятного течения по маркерам пациентки. "
+    "Если благоприятное течение вероятно — рекомендуется наблюдательная тактика, "
+    "если нет — хирургическая."
+)
 
-# ── Tab 1: Prediction ────────────────────────────────────────────────────────
-with tabs[0]:
-    st.subheader("Введите данные пациента")
+tab_pred, tab_metrics, tab_about = st.tabs(["🔍 Рекомендация", "📊 Метрики модели", "📈 Признаки и данные"])
+
+# ── Tab 1: recommendation ────────────────────────────────────────────────────
+with tab_pred:
+    st.subheader("Данные пациентки")
+    values = {}
+    cols = st.columns(2)
+    for i, f in enumerate(feats):
+        with cols[i % 2]:
+            values[f["name"]] = feature_input(f)
+
+    if st.button("🔮 Получить рекомендацию", type="primary"):
+        p = favourable_probability(model, values)
+
+        if p >= thr:
+            st.success("### Рекомендация: **наблюдательная (выжидательная) тактика**")
+        else:
+            st.error("### Рекомендация: **хирургическая тактика**")
+        st.plotly_chart(probability_chart(p, thr), width="stretch")
+
+        if abs(p - thr) < BORDERLINE:
+            st.warning("⚠️ Результат пограничный: вероятность близка к порогу. "
+                       "Решение — за врачом с учётом всей клинической картины.")
+        outside = [f for f in feats if not (f["min"] <= values[f["name"]] <= f["max"])]
+        if outside:
+            st.warning("Значения вне диапазона обучающих данных, прогноз менее надёжен: "
+                       + "; ".join(f"{f['name']} (в данных {_fmt(f['min'])}–{_fmt(f['max'])})"
+                                   for f in outside))
+
+    st.caption(f"Модель обучена на данных {model['n_patients']} пациенток. "
+               "Рекомендация не заменяет клиническое решение врача.")
+
+# ── Tab 2: metrics ───────────────────────────────────────────────────────────
+with tab_metrics:
+    m = model["metrics"]
+    st.subheader("Качество модели на кросс-валидации")
+    st.write(
+        f"Проверка методом leave-one-out: каждая из {model['n_patients']} пациенток оценена моделью, "
+        "обученной на остальных, — то есть на пациентке, которую модель не видела. "
+        "Отбор признаков тоже повторялся внутри каждой проверки."
+    )
+    st.markdown("**Группа 0** — неблагоприятный исход, **Группа 1** — благоприятный исход.")
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        st.code("Classification report:\n" + m["report_text"], language=None)
+        st.metric("ROC AUC", f"{m['auc']:.2f}")
+    with c2:
+        st.plotly_chart(confusion_chart(m["confusion"]), width="content")
+
+    st.subheader("Что программа рекомендовала бы пациенткам из выборки")
+    rec = pd.DataFrame(m["recommendations"]).rename(columns={
+        "group": "Фактическая тактика", "outcome": "Исход",
+        "observation": "Рекомендовано наблюдение", "surgery": "Рекомендована операция",
+    })
+    st.dataframe(rec, hide_index=True, width="stretch")
+
     st.info(
-        f"Показаны {TOP_N_FEATURES} наиболее значимых признаков. "
-        "Для остальных признаков используются нулевые значения."
+        "Почему метрики такие высокие: в этих данных p16 и Ki-67 в эпителии шейки матки полностью "
+        "разделяют исходы — у всех пациенток с низкими значениями исход благоприятный, с высокими — "
+        "неблагоприятный, в обеих группах лечения. Выборка небольшая, поэтому точность нужно "
+        "подтвердить на новых пациентках."
     )
 
-    top_feats = models["top_features"]
-    # Determine feature range hints from training data
-    surg_df_feat = pd.DataFrame(models["X_surg"], columns=models["feature_names"])
-    wait_df_feat = pd.DataFrame(models["X_wait"], columns=models["feature_names"])
-    combined_df = pd.concat([surg_df_feat, wait_df_feat])
+# ── Tab 3: features and data ─────────────────────────────────────────────────
+with tab_about:
+    st.subheader("Признаки, которые использует модель")
+    st.dataframe(pd.DataFrame([{
+        "Признак": f["name"],
+        "Влияние": "↓ снижает шанс благоприятного исхода" if f["coef"] < 0 else "↑ повышает шанс благоприятного исхода",
+        "Вес": round(f["coef"], 2),
+        "Диапазон в данных": f"{_fmt(f['min'])}–{_fmt(f['max'])}",
+        "Медиана": _fmt(round(f["median"], 2)),
+    } for f in feats]), hide_index=True, width="stretch")
+    st.caption("Вес — коэффициент логистической регрессии на стандартизованных значениях: "
+               "чем больше по модулю, тем сильнее признак влияет на прогноз.")
 
-    input_vals = {}
-    cols_per_row = 4
-    feat_groups = [top_feats[i:i+cols_per_row] for i in range(0, len(top_feats), cols_per_row)]
+    st.subheader("Связь каждого признака из таблицы с исходом")
+    st.caption("Сила связи — AUC одного признака: 0,5 — связи нет, 1 — признак сам по себе полностью "
+               f"разделяет исходы. В модель вошли {len(feats)} самых сильных.")
+    st.dataframe(pd.DataFrame([{
+        "Признак": r["name"],
+        "Сила связи (AUC)": round(max(r["auc"], 1 - r["auc"]), 3),
+        "Чем выше значение": "тем чаще благоприятный исход" if r["auc"] >= 0.5 else "тем чаще неблагоприятный исход",
+    } for r in model["univariate_auc"]]), hide_index=True, width="stretch", height=400)
 
-    for group in feat_groups:
-        cols = st.columns(len(group))
-        for col_widget, feat in zip(cols, group):
-            feat_data = combined_df[feat].dropna()
-            mn, mx = float(feat_data.min()), float(feat_data.max())
-            med = float(feat_data.median())
-            unique_vals = sorted(feat_data.unique())
-            label = str(feat)[:35]
-
-            with col_widget:
-                if set(unique_vals).issubset({0.0, 1.0}):
-                    # Binary feature → selectbox
-                    choice = st.selectbox(label, options=[0, 1],
-                                          format_func=lambda v: "Нет (0)" if v == 0 else "Да (1)",
-                                          key=feat)
-                    input_vals[feat] = float(choice)
-                elif mx - mn <= 10 and len(unique_vals) <= 10:
-                    # Few discrete values
-                    choice = st.selectbox(label, options=[float(v) for v in unique_vals], key=feat)
-                    input_vals[feat] = choice
-                else:
-                    # Continuous
-                    val = st.number_input(label, min_value=float(mn), max_value=float(mx),
-                                          value=float(med), step=float(max((mx-mn)/100, 0.1)),
-                                          key=feat)
-                    input_vals[feat] = val
-
-    st.divider()
-
-    if st.button("🔮 Получить рекомендацию", type="primary", use_container_width=True):
-        full_input = {feat: input_vals.get(feat, 0.0) for feat in models["feature_names"]}
-        p_surg, p_wait = make_prediction(models, full_input)
-
-        st.subheader("Результат")
-        res_col1, res_col2 = st.columns([2, 1])
-
-        with res_col1:
-            st.plotly_chart(prob_bar_chart(p_surg, p_wait), use_container_width=True)
-
-        with res_col2:
-            diff = abs(p_surg - p_wait)
-            if p_surg >= p_wait:
-                st.success("### ✅ Рекомендация: **Хирургическое лечение**")
-                better, worse = "хирургического", "выжидательной тактики"
-                bp, wp = p_surg, p_wait
-            else:
-                st.success("### ✅ Рекомендация: **Выжидательная тактика**")
-                better, worse = "выжидательной тактики", "хирургического"
-                bp, wp = p_wait, p_surg
-
-            confidence = "высокая" if diff > 0.3 else "умеренная" if diff > 0.15 else "низкая"
-            st.write(f"**Уверенность:** {confidence}")
-            st.write(f"Вероятность успеха при {better}: **{bp*100:.1f}%**")
-            st.write(f"Вероятность успеха при {worse}: **{wp*100:.1f}%**")
-
-            if diff < 0.1:
-                st.warning("⚠️ Разница невелика. Рекомендуется дополнительная клиническая оценка.")
-
-            st.caption("*Рекомендация основана на данных 46 пациентов. "
-                       "Не заменяет клиническое решение врача.*")
-
-# ── Tab 2: Feature importance ────────────────────────────────────────────────
-with tabs[1]:
-    st.subheader(f"Топ-{TOP_N_FEATURES} важных признаков")
-    st.plotly_chart(importance_chart(models), use_container_width=True)
-
-    st.subheader("Все важности признаков")
-    imp_df = pd.DataFrame({
-        "Признак": models["feature_names"],
-        "Важность (хирургия)": models["imp_surg"].values,
-        "Важность (выжидание)": models["imp_wait"].values,
-    }).sort_values("Важность (хирургия)", ascending=False).reset_index(drop=True)
-    st.dataframe(imp_df, use_container_width=True, height=400)
+    st.subheader("Данные")
+    st.write(f"Файл: `{model['source_file']}` · обучено {model['trained_at']}")
+    st.dataframe(pd.DataFrame([{
+        "Группа": g["name"], "Пациенток": g["total"],
+        "Благоприятный исход": g["good"], "Неблагоприятный исход": g["total"] - g["good"],
+    } for g in model["groups"]]), hide_index=True)

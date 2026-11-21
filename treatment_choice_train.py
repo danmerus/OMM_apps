@@ -3,10 +3,11 @@
 Usage:
     python treatment_choice_train.py "ИСХОДЫ ДО ананмнез ИГХ шейка версия 21.11.2026.xlsx"
 
-Writes data/treatment_choice_model.json (the only file the app needs), prints a
-cross-validated classification report and saves a confusion-matrix picture.
+Writes data/treatment_choice_model.json (the only file the app needs) and saves
+the cross-validated metrics locally in ./treatment_choice_metrics/ (change with
+--out-dir): report.txt, confusion_matrix.png, feature_association.csv.
 
-Do not commit the Excel file: it contains patient surnames.
+Do not commit the Excel file (it contains patient surnames) or the metrics folder.
 
 Excel layout expected:
   * the first two sheets are the surgery group and the observation group;
@@ -246,46 +247,52 @@ def save_confusion_png(cm: np.ndarray, path: Path) -> bool:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("excel", type=Path, help="Excel-файл с данными пациентов")
-    ap.add_argument("--png", type=Path, default=Path("treatment_choice_confusion_matrix.png"),
-                    help="куда сохранить картинку матрицы ошибок")
+    ap.add_argument("--out-dir", type=Path, default=Path("treatment_choice_metrics"),
+                    help="папка для метрик (отчёт, матрица ошибок, связь признаков с исходом)")
     args = ap.parse_args()
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+
+    lines: list[str] = []
+
+    def say(text: str = "") -> None:
+        print(text)
+        lines.append(text)
 
     df = load_excel(args.excel)
     features = [c for c in df.columns if not c.startswith("_")]
     X, y = df[features], df["_y"].to_numpy()
+    trained_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    print(f"Файл: {args.excel.name}")
-    print(f"Пациентов: {len(df)}, признаков: {len(features)}")
+    say(f"Файл: {args.excel.name}")
+    say(f"Обучено: {trained_at}")
+    say(f"Пациентов: {len(df)}, признаков в файле: {len(features)}")
     by_group = (df.groupby("_group", sort=False)["_y"]
                   .agg(total="size", good="sum").reset_index())
     for _, g in by_group.iterrows():
-        print(f"  {g['_group']}: {g['total']} (благоприятный исход {g['good']}, неблагоприятный {g['total'] - g['good']})")
+        say(f"  {g['_group']}: {g['total']} (благоприятный исход {g['good']}, неблагоприятный {g['total'] - g['good']})")
 
     # Cross-validated quality (what the report and confusion matrix show)
     oof = cross_validate(X, y, N_FEATURES)
     pred = (oof >= THRESHOLD).astype(int)
     report_text = classification_report(y, pred, target_names=[f"Группа {i}" for i in (0, 1)],
                                         digits=2, zero_division=0)
-    report = classification_report(y, pred, target_names=CLASS_NAMES, output_dict=True, zero_division=0)
     cm = confusion_matrix(y, pred, labels=[0, 1])
     auc = float(roc_auc_score(y, oof))
 
-    print("\nКросс-валидация (leave-one-out): каждый пациент оценён моделью, которая его не видела.")
-    print("Группа 0 — неблагоприятный исход, Группа 1 — благоприятный.\n")
-    print("Classification report:")
-    print(report_text)
-    print(f"ROC AUC: {auc:.3f}")
+    say("\nКросс-валидация (leave-one-out): каждый пациент оценён моделью, которая его не видела.")
+    say(f"Группа 0 — {CLASS_NAMES[0].lower()}, Группа 1 — {CLASS_NAMES[1].lower()}.\n")
+    say("Classification report:")
+    say(report_text)
+    say(f"ROC AUC: {auc:.3f}")
+    say("\nConfusion matrix (строки — факт, столбцы — прогноз):")
+    say(pd.DataFrame(cm, index=["факт 0", "факт 1"], columns=["прогноз 0", "прогноз 1"]).to_string())
 
     # What the app would have recommended for each patient (cross-validated)
     rec = np.where(pred == 1, "Наблюдение", "Хирургия")
     outcome = pd.Series(np.where(y == 1, "благоприятный", "неблагоприятный"), name="Исход")
     table = pd.crosstab([df["_group"].rename("Тактика"), outcome], pd.Series(rec, name="Рекомендация"))
-    print("\nРекомендация программы (по кросс-валидации) в разрезе фактической тактики и исхода:")
-    print(table.to_string())
-    recs_by_group = [
-        {"group": grp, "outcome": out, "surgery": int(row.get("Хирургия", 0)), "observation": int(row.get("Наблюдение", 0))}
-        for (grp, out), row in table.iterrows()
-    ]
+    say("\nРекомендация программы (по кросс-валидации) в разрезе фактической тактики и исхода:")
+    say(table.to_string())
 
     # Final model on all patients
     ranked = rank_features(X, y)
@@ -293,17 +300,25 @@ def main() -> None:
     model = Model(chosen).fit(X, y)
     coefs = dict(zip(chosen, model.lr.coef_[0]))
 
-    print("\nПризнаки модели (вес > 0 — повышает шанс благоприятного исхода):")
+    say(f"\nПризнаки модели (вес > 0 — повышает шанс благоприятного исхода), порог {THRESHOLD:.0%}:")
     for f in chosen:
-        print(f"  {coefs[f]:+.2f}  {f}")
+        say(f"  {coefs[f]:+.2f}  {f}")
+
+    # Metrics stay on this computer; the app gets only the model.
+    report_path = args.out_dir / "report.txt"
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    assoc_path = args.out_dir / "feature_association.csv"
+    pd.DataFrame([{
+        "Признак": f,
+        "Сила связи (AUC)": round(max(a, 1 - a), 3),
+        "Чем выше значение": "тем чаще благоприятный исход" if a >= 0.5 else "тем чаще неблагоприятный исход",
+        "В модели": "да" if f in chosen else "",
+    } for f, a in ranked]).to_csv(assoc_path, index=False, encoding="utf-8-sig")
 
     bundle = {
-        "trained_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "trained_at": trained_at,
         "source_file": args.excel.name,
         "n_patients": int(len(df)),
-        "n_features_in_file": len(features),
-        "groups": [{"name": g["_group"], "total": int(g["total"]), "good": int(g["good"])}
-                   for _, g in by_group.iterrows()],
         "threshold": THRESHOLD,
         "intercept": float(model.lr.intercept_[0]),
         "features": [{
@@ -316,22 +331,16 @@ def main() -> None:
             "min": float(X[f].min()),
             "max": float(X[f].max()),
         } for f in chosen],
-        "univariate_auc": [{"name": f, "auc": a} for f, a in ranked],
-        "metrics": {
-            "method": "leave-one-out",
-            "class_names": CLASS_NAMES,
-            "report": report,
-            "report_text": report_text,
-            "confusion": cm.tolist(),
-            "auc": auc,
-            "recommendations": recs_by_group,
-        },
     }
     MODEL_PATH.parent.mkdir(exist_ok=True)
     MODEL_PATH.write_text(json.dumps(bundle, ensure_ascii=False, indent=1), encoding="utf-8")
+
     print(f"\nSaved: {MODEL_PATH}")
-    if save_confusion_png(cm, args.png):
-        print(f"Saved: {args.png}")
+    print(f"Saved: {report_path}")
+    print(f"Saved: {assoc_path}")
+    png_path = args.out_dir / "confusion_matrix.png"
+    if save_confusion_png(cm, png_path):
+        print(f"Saved: {png_path}")
 
 
 if __name__ == "__main__":

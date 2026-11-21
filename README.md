@@ -10,8 +10,10 @@ pip install streamlit scikit-learn openpyxl matplotlib
 python treatment_choice_train.py "ИСХОДЫ ДО ананмнез ИГХ шейка версия 21.11.2026.xlsx"
 ```
 
-This prints the cross-validated classification report, saves a confusion-matrix PNG and rewrites
-`data/treatment_choice_model.json`. Commit only the JSON: **never commit the Excel file, it contains surnames.**
+This rewrites `data/treatment_choice_model.json` and saves the cross-validated metrics locally in
+`treatment_choice_metrics/` (`report.txt` with the classification report, `confusion_matrix.png`,
+`feature_association.csv`); `--out-dir` picks another folder. The app shows only the recommendation.
+Commit only the JSON: **never commit the Excel file, it contains surnames.**
 
 Expected Excel layout: first sheet = surgery group, second = observation group; row 1 = column names;
 column A = surname, its fill colour = outcome (green favourable, red unfavourable). Columns are matched

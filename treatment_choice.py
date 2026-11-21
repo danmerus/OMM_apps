@@ -2,7 +2,6 @@ import json
 import math
 from pathlib import Path
 
-import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -60,21 +59,6 @@ def probability_chart(p: float, threshold: float) -> go.Figure:
     return fig
 
 
-def confusion_chart(cm: list[list[int]]) -> go.Figure:
-    fig = go.Figure(go.Heatmap(
-        z=cm, x=["0", "1"], y=["0", "1"], colorscale="Greens", zmin=0,
-        text=cm, texttemplate="%{text}", textfont=dict(size=22),
-        hovertemplate="Истина: %{y}<br>Прогноз: %{x}<br>Пациентов: %{z}<extra></extra>",
-    ))
-    fig.update_layout(
-        title="Confusion matrix",
-        xaxis=dict(title="Predicted", type="category"),
-        yaxis=dict(title="True", type="category", autorange="reversed"),
-        height=380, width=440, margin=dict(t=50, b=10),
-    )
-    return fig
-
-
 # ── UI ───────────────────────────────────────────────────────────────────────
 
 st.title("🏥 Система поддержки выбора тактики лечения")
@@ -94,92 +78,27 @@ st.caption(
     "если нет — хирургическая."
 )
 
-tab_pred, tab_metrics, tab_about = st.tabs(["🔍 Рекомендация", "📊 Метрики модели", "📈 Признаки и данные"])
+st.subheader("Данные пациентки")
+values = {}
+cols = st.columns(2)
+for i, f in enumerate(feats):
+    with cols[i % 2]:
+        values[f["name"]] = feature_input(f)
 
-# ── Tab 1: recommendation ────────────────────────────────────────────────────
-with tab_pred:
-    st.subheader("Данные пациентки")
-    values = {}
-    cols = st.columns(2)
-    for i, f in enumerate(feats):
-        with cols[i % 2]:
-            values[f["name"]] = feature_input(f)
+if st.button("🔮 Получить рекомендацию", type="primary"):
+    p = favourable_probability(model, values)
 
-    if st.button("🔮 Получить рекомендацию", type="primary"):
-        p = favourable_probability(model, values)
+    if p >= thr:
+        st.success("### Рекомендация: **наблюдательная (выжидательная) тактика**")
+    else:
+        st.error("### Рекомендация: **хирургическая тактика**")
+    st.plotly_chart(probability_chart(p, thr), width="stretch")
 
-        if p >= thr:
-            st.success("### Рекомендация: **наблюдательная (выжидательная) тактика**")
-        else:
-            st.error("### Рекомендация: **хирургическая тактика**")
-        st.plotly_chart(probability_chart(p, thr), width="stretch")
-
-        if abs(p - thr) < BORDERLINE:
-            st.warning("⚠️ Результат пограничный: вероятность близка к порогу. "
-                       "Решение — за врачом с учётом всей клинической картины.")
-        outside = [f for f in feats if not (f["min"] <= values[f["name"]] <= f["max"])]
-        if outside:
-            st.warning("Значения вне диапазона обучающих данных, прогноз менее надёжен: "
-                       + "; ".join(f"{f['name']} (в данных {_fmt(f['min'])}–{_fmt(f['max'])})"
-                                   for f in outside))
-
-# ── Tab 2: metrics ───────────────────────────────────────────────────────────
-with tab_metrics:
-    m = model["metrics"]
-    st.subheader("Качество модели на кросс-валидации")
-    st.write(
-        f"Проверка методом leave-one-out: каждая из {model['n_patients']} пациенток оценена моделью, "
-        "обученной на остальных, — то есть на пациентке, которую модель не видела. "
-        "Отбор признаков тоже повторялся внутри каждой проверки."
-    )
-    st.markdown("**Группа 0** — неблагоприятный исход, **Группа 1** — благоприятный исход.")
-
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        st.code("Classification report:\n" + m["report_text"], language=None)
-        st.metric("ROC AUC", f"{m['auc']:.2f}")
-    with c2:
-        st.plotly_chart(confusion_chart(m["confusion"]), width="content")
-
-    st.subheader("Что программа рекомендовала бы пациенткам из выборки")
-    rec = pd.DataFrame(m["recommendations"]).rename(columns={
-        "group": "Фактическая тактика", "outcome": "Исход",
-        "observation": "Рекомендовано наблюдение", "surgery": "Рекомендована операция",
-    })
-    st.dataframe(rec, hide_index=True, width="stretch")
-
-    st.info(
-        "Почему метрики такие высокие: в этих данных p16 и Ki-67 в эпителии шейки матки полностью "
-        "разделяют исходы — у всех пациенток с низкими значениями исход благоприятный, с высокими — "
-        "неблагоприятный, в обеих группах лечения. Выборка небольшая, поэтому точность нужно "
-        "подтвердить на новых пациентках."
-    )
-
-# ── Tab 3: features and data ─────────────────────────────────────────────────
-with tab_about:
-    st.subheader("Признаки, которые использует модель")
-    st.dataframe(pd.DataFrame([{
-        "Признак": f["name"],
-        "Влияние": "↓ снижает шанс благоприятного исхода" if f["coef"] < 0 else "↑ повышает шанс благоприятного исхода",
-        "Вес": round(f["coef"], 2),
-        "Диапазон в данных": f"{_fmt(f['min'])}–{_fmt(f['max'])}",
-        "Медиана": _fmt(round(f["median"], 2)),
-    } for f in feats]), hide_index=True, width="stretch")
-    st.caption("Вес — коэффициент логистической регрессии на стандартизованных значениях: "
-               "чем больше по модулю, тем сильнее признак влияет на прогноз.")
-
-    st.subheader("Связь каждого признака из таблицы с исходом")
-    st.caption("Сила связи — AUC одного признака: 0,5 — связи нет, 1 — признак сам по себе полностью "
-               f"разделяет исходы. В модель вошли {len(feats)} самых сильных.")
-    st.dataframe(pd.DataFrame([{
-        "Признак": r["name"],
-        "Сила связи (AUC)": round(max(r["auc"], 1 - r["auc"]), 3),
-        "Чем выше значение": "тем чаще благоприятный исход" if r["auc"] >= 0.5 else "тем чаще неблагоприятный исход",
-    } for r in model["univariate_auc"]]), hide_index=True, width="stretch", height=400)
-
-    st.subheader("Данные")
-    st.write(f"Файл: `{model['source_file']}` · обучено {model['trained_at']}")
-    st.dataframe(pd.DataFrame([{
-        "Группа": g["name"], "Пациенток": g["total"],
-        "Благоприятный исход": g["good"], "Неблагоприятный исход": g["total"] - g["good"],
-    } for g in model["groups"]]), hide_index=True)
+    if abs(p - thr) < BORDERLINE:
+        st.warning("⚠️ Результат пограничный: вероятность близка к порогу. "
+                   "Решение — за врачом с учётом всей клинической картины.")
+    outside = [f for f in feats if not (f["min"] <= values[f["name"]] <= f["max"])]
+    if outside:
+        st.warning("Значения вне диапазона обучающих данных, прогноз менее надёжен: "
+                   + "; ".join(f"{f['name']} (в данных {_fmt(f['min'])}–{_fmt(f['max'])})"
+                               for f in outside))

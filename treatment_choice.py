@@ -73,17 +73,23 @@ thr = model["threshold"]
 feats = model["features"]
 
 st.caption(
-    "Программа оценивает вероятность благоприятного течения по маркерам пациентки. "
+    "Программа оценивает вероятность благоприятного течения по данным пациентки. "
     "Если благоприятное течение вероятно — рекомендуется наблюдательная тактика, "
     "если нет — хирургическая."
 )
 
 st.subheader("Данные пациентки")
 values = {}
-cols = st.columns(2)
-for i, f in enumerate(feats):
-    with cols[i % 2]:
-        values[f["name"]] = feature_input(f)
+sections: dict[str, list[dict]] = {}
+for f in feats:
+    sections.setdefault(f.get("group", ""), []).append(f)
+for section, items in sections.items():
+    if section:
+        st.markdown(f"#### {section}")
+    cols = st.columns(3)
+    for i, f in enumerate(items):
+        with cols[i % 3]:
+            values[f["name"]] = feature_input(f)
 
 if st.button("🔮 Получить рекомендацию", type="primary"):
     p = favourable_probability(model, values)

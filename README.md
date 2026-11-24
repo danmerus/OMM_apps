@@ -20,7 +20,13 @@ column A = surname, its fill colour = outcome (green favourable, red unfavourabl
 by name, so their order may differ between sheets; if a column is renamed in only one sheet, training
 stops and lists the mismatch (add the old→new name to `ALIASES`).
 
-How it decides: one model (logistic regression on the 4 features most associated with the outcome)
-estimates the chance of a favourable course. At ≥ 50 % the app recommends observation, otherwise surgery.
+How it decides: one model (logistic regression) estimates the chance of a favourable course from
+17 inputs in three sections (anamnesis, HPV and cervical IHC, microbiota). The list is fixed in
+`FEATURE_GROUPS` in `treatment_choice_train.py`, agreed with the clinicians; edit it there and retrain to
+change the form. At ≥ 50 % the app recommends observation, otherwise surgery.
+
 In the 21.11.2026 data the outcome depends on p16 / Ki-67 in the cervical epithelium and not on the
 tactic, so the data cannot say which tactic is better for a given patient — only how risky her course is.
+These two markers carry most of the weight; most anamnesis fields have weights near zero, so changing
+them barely moves the result. Without the two epithelium markers the other inputs still reach
+leave-one-out AUC ≈ 0.80, so they carry some signal, but it is swamped.

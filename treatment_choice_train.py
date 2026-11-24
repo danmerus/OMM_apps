@@ -18,6 +18,8 @@ What the model predicts: the chance of a favourable course. In this data the
 outcome depends on the markers, not on the tactic (see README section), so the
 app recommends observation when a favourable course is likely and surgery
 otherwise.
+
+Which inputs the model uses is fixed in FEATURE_GROUPS (agreed with the clinicians).
 """
 from __future__ import annotations
 
@@ -39,11 +41,44 @@ from sklearn.model_selection import LeaveOneOut
 HERE = Path(__file__).resolve().parent
 MODEL_PATH = HERE / "data" / "treatment_choice_model.json"
 
-N_FEATURES = 4      # inputs the model (and the app's form) uses; 4 pass a Bonferroni-corrected test on this data
 THRESHOLD = 0.5     # favourable-course probability at or above which observation is recommended
 C_REG = 1.0         # logistic-regression regularisation (smaller = stronger)
 
 CLASS_NAMES = ["Неблагоприятный исход", "Благоприятный исход"]   # y = 0, y = 1
+
+# The model's inputs, by section of the app's form. These are the 20 inputs of the
+# earlier app, minus the 4 that are no longer in the data (HPV by IHC, Ki-67 / p16
+# of the lesion stroma by expression level, p16 of the lesion stroma H-score) and
+# Ki-67 of the lesion stroma (H-score), which the clinicians asked to drop, plus
+# p16 and Ki-67 in the cervical epithelium. Names are as in the Excel file after
+# ALIASES; training stops if one is missing.
+FEATURE_GROUPS = {
+    "Анамнез": [
+        "Возраст",
+        "ИМТ",
+        "Возраст Менархе",
+        "Продолжительность менструации",
+        "Возраст начала половой жизни",
+        "Бесплодие первичное - продолжительность",
+    ],
+    "ВПЧ и ИГХ шейки матки": [
+        "Количество типов ВПЧ по данным мазка с шейки матки методом ПЦР",
+        "p16 в эпителии шейки матки, %",
+        "Ki 67 в эпителии шейки матки, %",
+    ],
+    "Микробиота": [
+        "Lactobacillus spp.",
+        "Lactobac. spp. % (относительный)",
+        "Gardnerella vaginalis+Prevotella bivia+Porphyromonas spp.",
+        "Eubacterium spp.",
+        "Megasphaera spp.+Veillonella spp.+Dialister spp.",
+        "Lachnobacterium spp.+Clostridium spp.",
+        "Mobiluncus spp.+Corynebacterium spp.",
+        "Ureaplasma (urealyticum+parvum)",
+    ],
+}
+FEATURES = [f for names in FEATURE_GROUPS.values() for f in names]
+GROUP_OF = {f: g for g, names in FEATURE_GROUPS.items() for f in names}
 
 # Same field spelled differently between sheets or file versions -> one name.
 ALIASES = {
@@ -51,6 +86,8 @@ ALIASES = {
         "Количество типов ВПЧ по данным мазка с шейки матки методом ПЦР",
     "Роды в анамнезе": "Количество родов",
     "p16 в эпителии шейки макти, %": "p16 в эпителии шейки матки, %",
+    "Пролжительность менструации": "Продолжительность менструации",
+    "возраст начала половой жизни": "Возраст начала половой жизни",
 }
 # Headers that only continue the previous column's name.
 CONTINUATIONS = {"продолжительность"}
@@ -201,13 +238,11 @@ class Model:
         return self.lr.predict_proba((Z - self.mean) / self.scale)[:, 1]
 
 
-def cross_validate(X: pd.DataFrame, y: np.ndarray, k: int) -> np.ndarray:
-    """Leave-one-out: each patient is predicted by a model that never saw them.
-    Feature choice is repeated inside every fold, so it cannot peek at the patient either."""
+def cross_validate(X: pd.DataFrame, y: np.ndarray, features: list[str]) -> np.ndarray:
+    """Leave-one-out: each patient is predicted by a model that never saw them."""
     oof = np.zeros(len(y))
     for tr, te in LeaveOneOut().split(X, y):
-        feats = [f for f, _ in rank_features(X.iloc[tr], y[tr])[:k]]
-        oof[te] = Model(feats).fit(X.iloc[tr], y[tr]).predict_proba(X.iloc[te])
+        oof[te] = Model(features).fit(X.iloc[tr], y[tr]).predict_proba(X.iloc[te])
     return oof
 
 
@@ -300,19 +335,23 @@ def main() -> None:
 
     df = load_excel(args.excel)
     features = [c for c in df.columns if not c.startswith("_")]
+    missing = [f for f in FEATURES if f not in features]
+    if missing:
+        sys.exit("В файле нет столбцов, которые использует модель:\n  " + "\n  ".join(missing)
+                 + "\nПереименуйте столбцы, добавьте соответствие в ALIASES или уберите их из FEATURE_GROUPS.")
     X, y = df[features], df["_y"].to_numpy()
     trained_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     say(f"Файл: {args.excel.name}")
     say(f"Обучено: {trained_at}")
-    say(f"Пациентов: {len(df)}, признаков в файле: {len(features)}")
+    say(f"Пациентов: {len(df)}, признаков в файле: {len(features)}, в модели: {len(FEATURES)}")
     by_group = (df.groupby("_group", sort=False)["_y"]
                   .agg(total="size", good="sum").reset_index())
     for _, g in by_group.iterrows():
         say(f"  {g['_group']}: {g['total']} (благоприятный исход {g['good']}, неблагоприятный {g['total'] - g['good']})")
 
     # Cross-validated quality (what the report and confusion matrix show)
-    oof = cross_validate(X, y, N_FEATURES)
+    oof = cross_validate(X, y, FEATURES)
     pred = (oof >= THRESHOLD).astype(int)
     report_text = classification_report(y, pred, target_names=[f"Группа {i}" for i in (0, 1)],
                                         digits=2, zero_division=0)
@@ -336,13 +375,14 @@ def main() -> None:
 
     # Final model on all patients
     ranked = rank_features(X, y)
-    chosen = [f for f, _ in ranked[:N_FEATURES]]
+    chosen = FEATURES
     model = Model(chosen).fit(X, y)
     coefs = dict(zip(chosen, model.lr.coef_[0]))
 
-    say(f"\nПризнаки модели (вес > 0 — повышает шанс благоприятного исхода), порог {THRESHOLD:.0%}:")
-    for f in chosen:
-        say(f"  {coefs[f]:+.2f}  {f}")
+    say(f"\nПризнаки модели по силе влияния (вес > 0 — повышает шанс благоприятного исхода), "
+        f"порог {THRESHOLD:.0%}:")
+    for f in sorted(chosen, key=lambda f: -abs(coefs[f])):
+        say(f"  {coefs[f]:+.2f}  {f}  [{GROUP_OF[f]}]")
 
     # Metrics stay on this computer; the app gets only the model.
     report_path = args.out_dir / "report.txt"
@@ -363,6 +403,7 @@ def main() -> None:
         "intercept": float(model.lr.intercept_[0]),
         "features": [{
             "name": f,
+            "group": GROUP_OF[f],
             "kind": _input_kind(X[f]),
             "coef": float(coefs[f]),
             "mean": float(model.mean[f]),

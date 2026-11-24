@@ -16,8 +16,9 @@ st.set_page_config(
 )
 
 
-@st.cache_data
 def load_model() -> dict:
+    # Read on every run, not cached: Streamlit Cloud keeps the app process running
+    # when a new model file is pushed, and a cache would keep serving the old model.
     return json.loads(MODEL_PATH.read_text(encoding="utf-8"))
 
 

@@ -10,7 +10,7 @@ MODEL_PATH = Path(__file__).resolve().parent / "data" / "treatment_choice_model.
 BORDERLINE = 0.15   # closer than this to the threshold -> show "borderline" warning
 
 st.set_page_config(
-    page_title="Выбор тактики лечения",
+    page_title="ENDOCIN TACTICS",
     page_icon="🏥",
     layout="wide",
 )
@@ -62,7 +62,10 @@ def probability_chart(p: float, threshold: float) -> go.Figure:
 
 # ── UI ───────────────────────────────────────────────────────────────────────
 
-st.title("🏥 Система поддержки выбора тактики лечения")
+st.title("ENDOCIN TACTICS", anchor=False)
+st.subheader("Система поддержки принятия врачебных решений", anchor=False)
+st.markdown("Выбор тактики ведения пациенток с наружным генитальным эндометриозом "
+            "в сочетании с цервикальной интраэпителиальной неоплазией лёгкой степени")
 
 if not MODEL_PATH.exists():
     st.error("Модель не найдена. Запустите `python treatment_choice_train.py <файл.xlsx>` и загрузите "

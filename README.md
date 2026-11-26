@@ -1,7 +1,7 @@
 # OMM apps
 To run locally: `streamlit run %appname%.py`
 
-## treatment_choice.py — выбор тактики лечения
+## treatment_choice.py — ENDOCIN TACTICS (выбор тактики ведения)
 
 The app reads only `data/treatment_choice_model.json`. To retrain on a new Excel file from the clinicians:
 

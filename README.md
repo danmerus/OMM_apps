@@ -30,3 +30,11 @@ tactic, so the data cannot say which tactic is better for a given patient — on
 These two markers carry most of the weight; most anamnesis fields have weights near zero, so changing
 them barely moves the result. Without the two epithelium markers the other inputs still reach
 leave-one-out AUC ≈ 0.80, so they carry some signal, but it is swamped.
+
+## crio_implantation.py — PREDICT Crio Implantation
+
+Predicts pregnancy in a cryo-transfer cycle for patients with repeated implantation failure, from a pipelle
+biopsy of the endometrium. The formula (logistic, 6 inputs: CD138, CD34, p53, PTEN, ΔCt miR-135a-5p and
+miR-143-3p) is the clinicians' own and is hardcoded in the app, with no training step. Input ranges
+for the out-of-range warning come from their 20-patient database. Never commit that Excel file: it
+contains full names. At P ≥ 50 % the app predicts pregnancy.
